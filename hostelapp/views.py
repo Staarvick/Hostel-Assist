@@ -1337,33 +1337,45 @@ def update_task(request, task_id):
 
 # ==================== STUDENT COMPLAINT VIEWS ====================
 @login_required
-@user_passes_test(is_student)
 def my_complaints(request):
-    """View for students to see their own complaints"""
-    complaints = Complaint.objects.filter(student=request.user).order_by('-created_at')
+    """View for students to see their complaints"""
+    # Get all complaints for the logged-in student
+    complaints = Complaint.objects.filter(student=request.user)
 
-    # Statistics
-    total = complaints.count()
-    pending = complaints.filter(status='pending').count()
-    assigned = complaints.filter(status='assigned').count()
-    in_progress = complaints.filter(status='in_progress').count()
-    completed = complaints.filter(status='completed').count()
+    # Get status filter from URL
+    status_filter = request.GET.get('status')
 
-    # Pagination
-    paginator = Paginator(complaints, 20)
+    # Apply filter if provided
+    if status_filter:
+        complaints = complaints.filter(status=status_filter)
+
+    # Count complaints by status
+    all_count = Complaint.objects.filter(student=request.user).count()
+    pending_count = Complaint.objects.filter(student=request.user, status='pending').count()
+    assigned_count = Complaint.objects.filter(student=request.user, status='assigned').count()
+    in_progress_count = Complaint.objects.filter(student=request.user, status='in_progress').count()
+    completed_count = Complaint.objects.filter(student=request.user, status='completed').count()
+
+    # Order by most recent first
+    complaints = complaints.order_by('-created_at')
+
+    # Add pagination
+    from django.core.paginator import Paginator
+    paginator = Paginator(complaints, 10)  # Show 10 complaints per page
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
     context = {
         'complaints': page_obj,
-        'total': total,
-        'pending': pending,
-        'assigned': assigned,
-        'in_progress': in_progress,
-        'completed': completed,
+        'status_filter': status_filter,
+        'all_count': all_count,
+        'pending_count': pending_count,
+        'assigned_count': assigned_count,
+        'in_progress_count': in_progress_count,
+        'completed_count': completed_count,
     }
-    return render(request, 'hostelapp/my_complaints.html', context)
 
+    return render(request, 'hostelapp/my_complaints.html', context)
 
 # ==================== PROFESSIONAL TASK MANAGEMENT ====================
 @login_required
